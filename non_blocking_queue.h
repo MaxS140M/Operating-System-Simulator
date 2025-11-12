@@ -2,10 +2,11 @@
 #define _NON_BLOCKING_QUEUE_H_
 
 #include "list.h"
+#include <pthread.h>
 
 typedef struct NonBlockingQueue {
-  /* Add fields as needed */
-  int remove_me; // Added to silence empty structure compiler warning
+  ListT* list;
+  pthread_mutex_t mutex;
 } NonBlockingQueueT;
 
 void non_blocking_queue_create(NonBlockingQueueT* queue);
