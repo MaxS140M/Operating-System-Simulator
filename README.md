@@ -7,7 +7,7 @@ Operating Systems and Concurrency Coursework
 |---------|-------------|
 | Implementing the logger | Y | 
 | Implementing a non blocking queue | Y | 
-| Implementing a blocking queue |  | 
+| Implementing a blocking queue | Y | 
 | Implementing priority queue |  | 
 | Adding threads to the simulator |  | 
 | Managing process ids |  | 

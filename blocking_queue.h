@@ -2,10 +2,13 @@
 #define _BLOCKING_QUEUE_H_
 
 #include "list.h"
+#include <pthread.h>
 
 typedef struct BlockingQueue {
-  /* Add fields as needed */
-  int remove_me; // Added to silence empty structure compiler warning
+  ListT* list;              //  queue
+  pthread_mutex_t mutex;    // mutex protecting the queue
+  pthread_cond_t cond;      // condition variable for pop / push
+  int terminated;	    //non -zero if queue is terminated
 } BlockingQueueT;
 
 void blocking_queue_create(BlockingQueueT* queue);
