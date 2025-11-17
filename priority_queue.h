@@ -2,10 +2,15 @@
 #define _NON_BLOCKING_QUEUE_SET_H_
 
 #include "list.h"
+#include "non_blocking_queue.h"
+#include <pthread.h>
 
 typedef struct PriorityQueue {
-  /* Add fields as needed */
-  int remove_me; // Added to silence empty structure compiler warning
+  NonBlockingQueueT* queues;     // Array of non-blocking queues, one per priority level
+  unsigned int num_queues;       // Num priority levels
+  unsigned int current_queue;    // Current queue for highest 
+  pthread_mutex_t mutex;         // Mutex for thread safety
+  int terminated;                // Flag if queue is terminated
 } PriorityQueueT;
 
 typedef unsigned int PriorityT;
