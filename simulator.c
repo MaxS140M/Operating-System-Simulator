@@ -33,6 +33,7 @@ typedef struct Process {
 
 static ProcessT* process_table = NULL;
 static PriorityQueueT ready_queue;
+static NonBlockingQueueT event_queue;  // Queue for blocked processes waiting for events
 static PriorityT max_priority_level = 0;
 static pthread_mutex_t process_table_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int simulator_running = 0;
@@ -105,8 +106,11 @@ void* simulator_routine(void* arg) {
                 break;
                 
             case reason_blocked:
-                // Process is blocked, don't put back in ready queue
+                // Process is blocked, add to event queue for IO events
                 process_table[pid].state = blocked;
+                non_blocking_queue_push(&event_queue, pid);
+                snprintf(message, sizeof(message), "Process %u blocked and added to event queue", pid);
+                logger_write(message);
                 break;
         }
         
@@ -160,7 +164,10 @@ void simulator_start(int thread_count_param, int max_processes_param, PriorityT 
     // Initialize ready queue with max_priority_level + 1 priority levels
     priority_queue_create(&ready_queue, max_priority_level + 1);
     
-    logger_write("Process table and ready queue initialized");
+    // Initialize event queue for blocked processes
+    non_blocking_queue_create(&event_queue);
+    
+    logger_write("Process table, ready queue, and event queue initialized");
     
     // Allocate memory for thread array
     threads = checked_malloc(sizeof(pthread_t) * thread_count);
@@ -224,6 +231,10 @@ void simulator_stop() {
     // Clean up ready queue
     priority_queue_destroy(&ready_queue);
     logger_write("Ready queue destroyed");
+    
+    // Clean up event queue
+    non_blocking_queue_destroy(&event_queue);
+    logger_write("Event queue destroyed");
     
     // Clean up process ID pool
     if (max_processes > 0) {
@@ -304,4 +315,32 @@ void simulator_kill(ProcessIdT pid) {
 }
 
 void simulator_event() {
+    // Safety check: don't process events if simulator is shutting down
+    if (!simulator_running) {
+        return;
+    }
+    
+    pthread_mutex_lock(&process_table_mutex);
+    
+    // Check if there are any blocked processes waiting for events
+    if (!non_blocking_queue_empty(&event_queue)) {
+        unsigned int pid_value;
+        int result = non_blocking_queue_pop(&event_queue, &pid_value);
+        
+        if (result == 0) {  // Successfully got a process from event queue
+            ProcessIdT pid = (ProcessIdT)pid_value;
+            
+            // Move the process from blocked to ready state
+            if (process_table[pid].state == blocked) {
+                process_table[pid].state = ready;
+                priority_queue_push(&ready_queue, 0, pid);  // Add to ready queue with highest priority
+                
+                char message[100];
+                snprintf(message, sizeof(message), "Process %u unblocked and moved to ready queue", pid);
+                logger_write(message);
+            }
+        }
+    }
+    
+    pthread_mutex_unlock(&process_table_mutex);
 }

@@ -21,7 +21,6 @@ static unsigned int batch_size = 0;
 void* terminating_routine(void* arg) {
     int thread_id = *(int*)arg;
     
-
     // Log thread start message
     char message[100];
     snprintf(message, sizeof(message), "Environment thread %d started", thread_id);
@@ -35,7 +34,15 @@ void* terminating_routine(void* arg) {
         for (unsigned int i = 0; i < batch_size; i++) {
             // Generate random number of steps between 1 and 20
             unsigned int steps = (rand() % 20) + 1;
-            EvaluatorCodeT code = evaluator_terminates_after(steps);
+            
+            EvaluatorCodeT code;
+            // Create a mix of blocking and non-blocking processes (50/50 split)
+            if (rand() % 2 == 0) {
+                code = evaluator_terminates_after(steps);
+            } else {
+                code = evaluator_blocking_terminates_after(steps);
+            }
+            
             process_ids[i] = simulator_create_process(code);
             
             snprintf(message, sizeof(message), 
@@ -100,7 +107,6 @@ void environment_start(unsigned int thread_count_param,
 }
 
 void environment_stop() {
-
     if (threads != NULL && thread_count > 0) {
         // Wait for all threads to finish
         for (int i = 0; i < thread_count; i++) {

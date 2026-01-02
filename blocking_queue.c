@@ -3,15 +3,17 @@
 
 #include <assert.h>
 #include <pthread.h>
-
+#include <semaphore.h>
 
 void blocking_queue_terminate(BlockingQueueT* queue) {
   assert(queue != NULL);
   pthread_mutex_lock(&queue->mutex);
   queue->terminated = 1;
-  pthread_cond_broadcast(&queue->cond);
+  // Wake up all waiting threads by posting to semaphore multiple times
+  for (int i = 0; i < 1000; i++) {
+    sem_post(&queue->semaphore);
+  }
   pthread_mutex_unlock(&queue->mutex);
-
 }
 
 void blocking_queue_create(BlockingQueueT* queue) {
@@ -19,9 +21,8 @@ void blocking_queue_create(BlockingQueueT* queue) {
   queue->list = list_create();
   assert(queue->list != NULL);
   pthread_mutex_init(&queue->mutex, NULL);
-  pthread_cond_init(&queue->cond, NULL);
+  sem_init(&queue->semaphore, 0, 0);  // Initialize with 0 count
   queue->terminated = 0;
-
 }
 
 void blocking_queue_destroy(BlockingQueueT* queue) {
@@ -36,9 +37,8 @@ void blocking_queue_destroy(BlockingQueueT* queue) {
   }
   pthread_mutex_unlock(&queue->mutex);
 
-  pthread_cond_destroy(&queue->cond);
+  sem_destroy(&queue->semaphore);
   pthread_mutex_destroy(&queue->mutex);
-
 }
 
 void blocking_queue_push(BlockingQueueT* queue, unsigned int value) {
@@ -47,10 +47,9 @@ void blocking_queue_push(BlockingQueueT* queue, unsigned int value) {
   pthread_mutex_lock(&queue->mutex);
   if (!queue->terminated) {
     list_append(queue->list, value);
-    pthread_cond_signal(&queue->cond);
+    sem_post(&queue->semaphore);  // Signal that an item is available
   }
   pthread_mutex_unlock(&queue->mutex);
-
 }
 
 int blocking_queue_pop(BlockingQueueT* queue, unsigned int* value) {
@@ -58,20 +57,26 @@ int blocking_queue_pop(BlockingQueueT* queue, unsigned int* value) {
   assert(value != NULL);
   assert(queue->list != NULL);
 
+  // Wait for an item to be available or termination
+  sem_wait(&queue->semaphore);
+  
   pthread_mutex_lock(&queue->mutex);
-  while (list_empty(queue->list) && !queue->terminated) {
-    pthread_cond_wait(&queue->cond, &queue->mutex);
-  }
-
+  
+  // Check if we were woken up due to termination
   if (queue->terminated) {
     pthread_mutex_unlock(&queue->mutex);
     return 1; /* failure due to termination */
   }
+  
+  // Check if list is empty (should not happen after sem_wait, but safety check)
+  if (list_empty(queue->list)) {
+    pthread_mutex_unlock(&queue->mutex);
+    return 1; /* failure - no items available */
+  }
 
   *value = list_pop_front(queue->list);
   pthread_mutex_unlock(&queue->mutex);
-
-  return 0;
+  return 0; /* success */
 }
 
 int blocking_queue_empty(BlockingQueueT* queue) {
@@ -80,12 +85,11 @@ int blocking_queue_empty(BlockingQueueT* queue) {
   pthread_mutex_lock(&queue->mutex);
   int empty = list_empty(queue->list);
   pthread_mutex_unlock(&queue->mutex);
-
   return empty;
 }
 
 int blocking_queue_length(BlockingQueueT* queue) {
-   assert(queue != NULL);
+  assert(queue != NULL);
   assert(queue->list != NULL);
   pthread_mutex_lock(&queue->mutex);
   size_t len = list_length(queue->list);
