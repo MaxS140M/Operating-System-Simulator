@@ -9,10 +9,10 @@ Operating Systems and Concurrency Coursework
 | Implementing a non blocking queue | Y | 
 | Implementing a blocking queue | Y | 
 | Implementing priority queue | Y | 
-| Adding threads to the simulator |  | 
-| Managing process ids |  | 
-| Simulating running processess and waiting for htem to finish |  | 
-| Making the enviroment create and wait for processes |  | 
+| Adding threads to the simulator | Y | 
+| Managing process ids | Y | 
+| Simulating running processess and waiting for htem to finish |Y  | 
+| Making the enviroment create and wait for processes | Y | 
 | Dealing with blocking processes |  | 
 | making the environment create and wait for jobs that may block |  | 
 | Priority Boosting |  | 
