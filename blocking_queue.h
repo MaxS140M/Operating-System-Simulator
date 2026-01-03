@@ -3,12 +3,13 @@
 
 #include "list.h"
 #include <pthread.h>
+#include <semaphore.h>
 
 typedef struct BlockingQueue {
-  ListT* list;              //  queue
+  ListT* list;              // underlying list used as the queue
   pthread_mutex_t mutex;    // mutex protecting the queue
-  pthread_cond_t cond;      // condition variable for pop / push
-  int terminated;	    //non -zero if queue is terminated
+  sem_t semaphore;          // semaphore for blocking/waking threads
+  int terminated;           // non-zero if the queue has been terminated
 } BlockingQueueT;
 
 void blocking_queue_create(BlockingQueueT* queue);
